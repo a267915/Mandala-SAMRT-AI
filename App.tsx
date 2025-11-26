@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CellData, MandalaChart, ViewMode, GridPosition, ChatMessage, FontSize } from './types';
+import { CellData, MandalaChart, ViewMode, GridPosition, ChatMessage, FontSize, Theme } from './types';
 import { suggestIdeas } from './services/geminiService';
 import MandalaCell from './components/MandalaCell';
 import ChatPanel from './components/ChatPanel';
 import MediaPanel from './components/MediaPanel';
-import { LayoutGrid, Sparkles, MessageSquare, Menu, ChevronLeft, ArrowLeft, Trash2, Type, Maximize2, Bot } from 'lucide-react';
+import ExportModal from './components/ExportModal';
+import { LayoutGrid, Sparkles, MessageSquare, Menu, ChevronLeft, ArrowLeft, Trash2, Type, Maximize2, Bot, Sun, Moon, Share2, ZoomIn } from 'lucide-react';
 
 const INITIAL_CELL: CellData = { id: '', text: '' };
 
@@ -33,13 +34,29 @@ const App: React.FC = () => {
   
   const [showChat, setShowChat] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [fontSize, setFontSize] = useState<FontSize>('medium');
+  const [theme, setTheme] = useState<Theme>('light');
 
   // Chat State (Lifted)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'model', text: '你好！我是你的曼陀羅 AI 助手。今天有什麼我可以幫你規劃的嗎？' }
   ]);
+
+  // Handle Theme
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+        root.classList.add('dark');
+    } else {
+        root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   // --- Helpers to Get/Set Data ---
 
@@ -139,6 +156,15 @@ const App: React.FC = () => {
         setFocusedSubGoalIndex(null);
         setSelectedCell(null);
     }
+  };
+
+  const handleImportData = (importedData: MandalaChart) => {
+      if (window.confirm("匯入將會覆蓋目前的內容，確定要繼續嗎？")) {
+          setData(importedData);
+          setViewMode(ViewMode.MAIN);
+          setFocusedSubGoalIndex(null);
+          setSelectedCell(null);
+      }
   };
 
   const cycleFontSize = () => {
@@ -248,16 +274,16 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       
       {/* Header */}
-      <header className="h-14 md:h-16 bg-white border-b flex items-center justify-between px-2 md:px-6 shadow-sm z-20 shrink-0">
+      <header className="h-14 md:h-16 bg-white dark:bg-slate-900 border-b dark:border-slate-700 flex items-center justify-between px-2 md:px-6 shadow-sm z-20 shrink-0 transition-colors duration-300">
         <div className="flex items-center gap-2 md:gap-3">
-          <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg text-white">
+          <div className="bg-indigo-600 dark:bg-indigo-700 p-1.5 md:p-2 rounded-lg text-white">
             <LayoutGrid size={20} className="md:w-6 md:h-6" />
           </div>
           <div>
-            <h1 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">
+            <h1 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white tracking-tight">
                 <span className="hidden md:inline">曼陀羅思考法 AI</span>
                 <span className="md:hidden">曼陀羅 AI</span>
             </h1>
@@ -266,22 +292,38 @@ const App: React.FC = () => {
 
         <div className="flex items-center gap-1 md:gap-2">
             {viewMode === ViewMode.SUB && (
-                <button onClick={handleBackToMain} className="flex items-center gap-1 text-xs md:text-sm font-medium text-gray-600 hover:text-indigo-600 px-2 py-1.5 rounded-md hover:bg-gray-100 transition mr-1">
+                <button onClick={handleBackToMain} className="flex items-center gap-1 text-xs md:text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition mr-1">
                     <ArrowLeft size={16} /> <span className="hidden md:inline">返回中心</span>
                 </button>
             )}
             
-            <div className="flex items-center border-r pr-1 mr-1 gap-1">
+            <div className="flex items-center border-r dark:border-slate-700 pr-1 mr-1 gap-1">
                  <button
                     onClick={cycleFontSize}
-                    className="p-1.5 md:p-2 rounded-full text-gray-500 hover:bg-gray-100 transition"
+                    className="p-1.5 md:p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
                     title={`字體大小: ${fontSize === 'small' ? '小' : fontSize === 'medium' ? '中' : '大'}`}
                  >
                     <Type size={18} className="md:w-5 md:h-5" />
                  </button>
                  <button
+                    onClick={toggleTheme}
+                    className="p-1.5 md:p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                    title={theme === 'light' ? "切換至深色模式" : "切換至亮色模式"}
+                 >
+                    {theme === 'light' ? <Moon size={18} className="md:w-5 md:h-5" /> : <Sun size={18} className="md:w-5 md:h-5" />}
+                 </button>
+                 
+                 <button
+                    onClick={() => setShowExport(true)}
+                    className="p-1.5 md:p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+                    title="匯出 / 匯入 / 分享"
+                 >
+                    <Share2 size={18} className="md:w-5 md:h-5" />
+                 </button>
+
+                 <button
                     onClick={handleClearAll}
-                    className="p-1.5 md:p-2 rounded-full text-gray-500 hover:bg-red-50 hover:text-red-600 transition"
+                    className="p-1.5 md:p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition"
                     title="清除所有內容"
                  >
                     <Trash2 size={18} className="md:w-5 md:h-5" />
@@ -294,8 +336,8 @@ const App: React.FC = () => {
                     flex items-center gap-2
                     p-2 md:px-4 md:py-2 rounded-full transition-all duration-300
                     ${showChat 
-                        ? 'bg-indigo-800 text-white shadow-inner ring-2 ring-indigo-300' 
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg hover:-translate-y-0.5'
+                        ? 'bg-indigo-800 text-white shadow-inner ring-2 ring-indigo-300 dark:ring-indigo-500' 
+                        : 'bg-indigo-600 dark:bg-indigo-700 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600 shadow-md hover:shadow-lg hover:-translate-y-0.5'
                     }
                 `}
                 title="AI 助手"
@@ -306,7 +348,7 @@ const App: React.FC = () => {
 
             <button 
                 onClick={toggleMedia}
-                className={`p-1.5 md:p-2 rounded-full transition ${showMedia ? 'bg-purple-100 text-purple-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`p-1.5 md:p-2 rounded-full transition ${showMedia ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                 title="創意工作室（圖像/影片）"
             >
                 <Sparkles size={20} className="md:w-5 md:h-5" />
@@ -325,7 +367,7 @@ const App: React.FC = () => {
                 <button 
                     onClick={handleSuggest}
                     disabled={isSuggesting}
-                    className="pointer-events-auto flex items-center gap-2 bg-white/90 backdrop-blur border border-indigo-200 text-indigo-700 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm rounded-full shadow-lg hover:shadow-xl hover:bg-white transition disabled:opacity-50"
+                    className="pointer-events-auto flex items-center gap-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm rounded-full shadow-lg hover:shadow-xl hover:bg-white dark:hover:bg-slate-800 transition disabled:opacity-50"
                 >
                     <Sparkles size={14} className={isSuggesting ? "animate-spin" : ""} />
                     {isSuggesting ? "思考中..." : "AI 自動填寫"}
@@ -333,13 +375,15 @@ const App: React.FC = () => {
             </div>
 
             {/* Grid Container */}
-            <div className="flex-1 flex items-center justify-center p-2 bg-slate-50 w-full">
+            <div className="flex-1 flex items-center justify-center p-2 bg-slate-50 dark:bg-slate-950 w-full transition-colors duration-300">
                 {/* 
                    Responsive Grid Logic:
                    w-full max-w-[min(95vw, 75vh)] ensures it fits the viewport width OR height, whichever is tighter.
                    On desktop, we allow it to be max-w-2xl if space permits.
                 */}
-                <div className={`
+                <div 
+                    id="mandala-grid" 
+                    className={`
                     relative 
                     w-full 
                     max-w-[min(95vw,75vh)] 
@@ -348,7 +392,8 @@ const App: React.FC = () => {
                     grid grid-cols-3 
                     gap-1 md:gap-3 lg:gap-4 
                     p-1 md:p-4 
-                    bg-white rounded-lg md:rounded-xl shadow-xl border border-gray-100
+                    bg-white dark:bg-slate-800
+                    rounded-lg md:rounded-xl shadow-xl border border-gray-100 dark:border-slate-700
                     transition-all duration-300
                 `}>
                     {GRID_MAP.map((pos) => {
@@ -380,31 +425,32 @@ const App: React.FC = () => {
                                     onEdit={(text) => updateCell(pos, { text })}
                                 />
                                 
-                                {/* Zoom In Action Button - Always visible for ease of access on outer cells in MAIN mode */}
+                                {/* Zoom In Action Button - Always visible, prominent */}
                                 {!isCenter && viewMode === ViewMode.MAIN && (
-                                    <button 
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleZoomIn(pos);
                                         }}
-                                        className="absolute bottom-1 right-1 p-1.5 md:p-2 bg-white/90 text-indigo-600 rounded-full shadow-md hover:bg-indigo-50 transition z-20"
-                                        title="進入細節"
+                                        className="absolute bottom-1 right-1 md:bottom-2 md:right-2 p-1.5 md:p-2 bg-indigo-50 dark:bg-slate-700 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 shadow-md transition-all z-30 hover:scale-110 border border-indigo-100 dark:border-slate-600"
+                                        title="進入子目標"
                                     >
-                                        <Maximize2 size={16} className="md:w-5 md:h-5"/>
+                                        <ZoomIn size={18} className="w-4 h-4 md:w-5 md:h-5" />
                                     </button>
                                 )}
 
-                                {/* Zoom Out Action Button - On Center Cell of SUB mode */}
+                                {/* Back Button - Center cell in SUB mode - Prominent Pill */}
                                 {isCenter && viewMode === ViewMode.SUB && (
-                                    <button 
+                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleBackToMain();
                                         }}
-                                        className="absolute top-1 left-1 p-1.5 md:p-2 bg-indigo-500 text-white rounded-full shadow-md hover:bg-indigo-400 transition z-20"
-                                        title="返回主總覽"
+                                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-center gap-1 px-3 py-1.5 bg-white text-indigo-700 rounded-full shadow-lg hover:bg-gray-100 transition-all z-30 hover:scale-105"
+                                        title="返回中心"
                                     >
-                                        <ArrowLeft size={16} className="md:w-5 md:h-5"/>
+                                        <ArrowLeft size={16} />
+                                        <span className="text-xs font-bold">返回</span>
                                     </button>
                                 )}
                             </div>
@@ -412,40 +458,60 @@ const App: React.FC = () => {
                     })}
                 </div>
             </div>
-
-            <div className="pb-2 md:pb-4 text-center text-gray-400 text-xs md:text-sm shrink-0">
-                {viewMode === ViewMode.MAIN ? "主總覽：定義你的核心目標（雙擊外圍格子可進入）" : `區域：${data.subGoals[focusedSubGoalIndex || 0].text || "未命名"}（雙擊中心可返回）`}
-            </div>
         </main>
 
         {/* Side Panels */}
-        {showChat && (
-            <div className="absolute right-0 top-0 bottom-0 md:relative w-full md:w-96 flex-shrink-0 z-30 transition-all duration-300 border-l border-gray-200">
-                <div className="absolute top-2 right-2 md:hidden z-40">
-                    <button onClick={() => setShowChat(false)} className="p-2 bg-gray-200 rounded-full text-gray-600 shadow-md">
-                        <ChevronLeft />
-                    </button>
+        <div className={`
+            fixed inset-y-0 right-0 z-30 
+            w-full md:w-80 lg:w-96 
+            transform transition-transform duration-300 ease-in-out shadow-2xl
+            ${showChat ? 'translate-x-0' : 'translate-x-full'}
+        `}>
+            {showChat && (
+                <div className="h-full w-full">
+                    <div className="absolute top-2 right-full mr-2 md:hidden">
+                        <button onClick={toggleChat} className="bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg text-gray-500">
+                             <ChevronLeft />
+                        </button>
+                    </div>
+                    <ChatPanel messages={chatMessages} onUpdateMessages={setChatMessages} />
                 </div>
-                <ChatPanel messages={chatMessages} onUpdateMessages={setChatMessages} />
-            </div>
-        )}
-        
-        {showMedia && selectedCell && (
-            <div className="absolute right-0 top-0 bottom-0 md:relative w-full md:w-96 flex-shrink-0 z-30 transition-all duration-300 border-l border-gray-700">
-                 <div className="absolute top-2 right-2 md:hidden z-40">
-                    <button onClick={() => setShowMedia(false)} className="p-2 bg-gray-800 rounded-full text-gray-300 shadow-md">
-                        <ChevronLeft />
-                    </button>
+            )}
+        </div>
+
+        <div className={`
+            fixed inset-y-0 right-0 z-30 
+            w-full md:w-80 lg:w-96 
+            transform transition-transform duration-300 ease-in-out shadow-2xl
+            ${showMedia ? 'translate-x-0' : 'translate-x-full'}
+        `}>
+             {showMedia && (
+                <div className="h-full w-full">
+                     <div className="absolute top-2 right-full mr-2 md:hidden">
+                        <button onClick={toggleMedia} className="bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg text-gray-500">
+                             <ChevronLeft />
+                        </button>
+                    </div>
+                    <MediaPanel 
+                        activeCell={getActiveCellForMedia()} 
+                        onUpdateCell={updateActiveCellFromMedia} 
+                        onClose={() => setShowMedia(false)} 
+                    />
                 </div>
-                <MediaPanel 
-                    activeCell={getActiveCellForMedia()}
-                    onUpdateCell={updateActiveCellFromMedia}
-                    onClose={() => setShowMedia(false)}
-                />
-            </div>
-        )}
+            )}
+        </div>
 
       </div>
+
+      {/* Export Modal */}
+      {showExport && (
+        <ExportModal 
+            data={data} 
+            onImport={handleImportData} 
+            onClose={() => setShowExport(false)} 
+        />
+      )}
+
     </div>
   );
 };

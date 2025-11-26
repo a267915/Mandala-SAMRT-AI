@@ -59,38 +59,38 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ activeCell, onUpdateCell, onClo
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 text-white shadow-xl">
-      <div className="p-4 flex justify-between items-center border-b border-gray-700">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-xl transition-colors duration-300">
+      <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-slate-700">
         <h3 className="font-semibold flex items-center gap-2">
-           <Wand2 size={18} className="text-yellow-400" /> 
+           <Wand2 size={18} className="text-yellow-500 dark:text-yellow-400" /> 
            創意工作室 (Nano)
         </h3>
-        <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-white"/></button>
+        <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-gray-600 dark:hover:text-white"/></button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-700">
-        <button onClick={() => setMode('generate')} className={`flex-1 p-3 text-sm font-medium ${mode === 'generate' ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-gray-400'}`}>
+      <div className="flex border-b border-gray-200 dark:border-slate-700">
+        <button onClick={() => setMode('generate')} className={`flex-1 p-3 text-sm font-medium transition-colors ${mode === 'generate' ? 'text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-500' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
             <ImageIcon size={16} className="mx-auto mb-1"/> 生成
         </button>
-        <button onClick={() => setMode('edit')} className={`flex-1 p-3 text-sm font-medium ${mode === 'edit' ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-gray-400'}`}>
+        <button onClick={() => setMode('edit')} className={`flex-1 p-3 text-sm font-medium transition-colors ${mode === 'edit' ? 'text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-500' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
             <Wand2 size={16} className="mx-auto mb-1"/> 編輯
         </button>
-        <button onClick={() => setMode('analyze')} className={`flex-1 p-3 text-sm font-medium ${mode === 'analyze' ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-gray-400'}`}>
+        <button onClick={() => setMode('analyze')} className={`flex-1 p-3 text-sm font-medium transition-colors ${mode === 'analyze' ? 'text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-500' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'}`}>
             <BrainCircuit size={16} className="mx-auto mb-1"/> 分析
         </button>
       </div>
 
       <div className="p-4 flex-1 overflow-y-auto">
         {/* Preview */}
-        <div className="aspect-square bg-gray-800 rounded-lg mb-4 overflow-hidden relative border border-gray-700 flex items-center justify-center">
+        <div className="aspect-square bg-gray-100 dark:bg-slate-800 rounded-lg mb-4 overflow-hidden relative border border-gray-200 dark:border-slate-700 flex items-center justify-center">
             {activeCell.imageUrl ? (
                 <img src={activeCell.imageUrl} alt="preview" className="w-full h-full object-cover" />
             ) : (
-                <div className="text-gray-500 text-xs text-center p-4">未選擇圖片。<br/> 請生成或上傳。</div>
+                <div className="text-gray-400 dark:text-gray-500 text-xs text-center p-4">未選擇圖片。<br/> 請生成或上傳。</div>
             )}
             
-            <label className="absolute bottom-2 right-2 bg-gray-900/80 p-2 rounded-full cursor-pointer hover:bg-black transition">
+            <label className="absolute bottom-2 right-2 bg-white/80 dark:bg-black/60 p-2 rounded-full cursor-pointer hover:bg-white dark:hover:bg-black transition text-gray-700 dark:text-white backdrop-blur-sm">
                 <Upload size={14} />
                 <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
             </label>
@@ -99,7 +99,7 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ activeCell, onUpdateCell, onClo
         {/* Controls */}
         <div className="space-y-4">
             <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                     {mode === 'analyze' ? '問題' : '提示詞'}
                 </label>
                 <textarea 
@@ -110,17 +110,17 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ activeCell, onUpdateCell, onClo
                         mode === 'edit' ? "例如：添加復古濾鏡..." :
                         "例如：這張圖片的主要顏色是什麼？"
                     }
-                    className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm text-white focus:border-yellow-500 focus:outline-none h-20 resize-none"
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded p-2 text-sm text-gray-900 dark:text-white focus:border-yellow-500 focus:outline-none h-20 resize-none transition-colors"
                 />
             </div>
 
             {mode !== 'analyze' && (
                 <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-1">長寬比</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">長寬比</label>
                     <select 
                         value={aspectRatio} 
                         onChange={e => setAspectRatio(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm text-white"
+                        className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded p-2 text-sm text-gray-900 dark:text-white focus:border-yellow-500 focus:outline-none transition-colors"
                     >
                         <option value="1:1">1:1 (正方形)</option>
                         <option value="16:9">16:9 (橫向)</option>
@@ -132,8 +132,8 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ activeCell, onUpdateCell, onClo
             )}
             
             {mode === 'analyze' && analysisResult && (
-                <div className="bg-gray-800 p-3 rounded text-sm text-gray-300 border border-gray-700">
-                    <h4 className="font-bold text-white mb-1">分析結果：</h4>
+                <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">分析結果：</h4>
                     {analysisResult}
                 </div>
             )}
@@ -141,7 +141,7 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ activeCell, onUpdateCell, onClo
             <button 
                 onClick={handleAction}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-medium py-2 rounded shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-medium py-2 rounded shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
                 {loading ? (
                     <span className="animate-spin">⏳</span> 
