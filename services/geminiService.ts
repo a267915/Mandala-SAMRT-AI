@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // Helper to get AI instance
 // Note: We create a new instance per call to ensure latest API key if it changes (though usually env var is static in this context)
@@ -90,25 +90,24 @@ export const chatWithGemini = async (
 };
 
 /**
- * Generate an image using Nano Banana Pro (Gemini 3 Pro Image).
+ * Generate an image using Nano Banana (Gemini 2.5 Flash Image).
  */
 export const generateImage = async (
   prompt: string,
-  aspectRatio: string = "1:1",
-  imageSize: "1K" | "2K" | "4K" = "1K"
+  aspectRatio: string = "1:1"
 ): Promise<string | null> => {
   const ai = getAI();
   
   try {
+    // gemini-2.5-flash-image does not support imageSize, only aspectRatio
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-image-preview",
+      model: "gemini-2.5-flash-image",
       contents: {
         parts: [{ text: prompt }]
       },
       config: {
         imageConfig: {
           aspectRatio: aspectRatio,
-          imageSize: imageSize
         }
       }
     });
@@ -163,81 +162,15 @@ export const editImage = async (
 };
 
 /**
- * Generate Video using Veo.
- */
-export const generateVideo = async (
-  prompt: string,
-  aspectRatio: "16:9" | "9:16" = "16:9",
-  imageBytes?: string
-): Promise<string | null> => {
-  const ai = getAI();
-
-  try {
-    // Check for API key selection for Veo
-    const win = window as any;
-    if (win.aistudio && win.aistudio.hasSelectedApiKey) {
-        const hasKey = await win.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-            await win.aistudio.openSelectKey();
-            // In a real app we might want to wait or retry, but strict guidelines say proceed
-        }
-    }
-
-    const config: any = {
-      numberOfVideos: 1,
-      resolution: '720p',
-      aspectRatio: aspectRatio
-    };
-
-    let operation;
-    
-    if (imageBytes) {
-       operation = await ai.models.generateVideos({
-        model: 'veo-3.1-fast-generate-preview',
-        prompt: prompt, 
-        image: {
-            imageBytes: imageBytes.replace(/^data:image\/\w+;base64,/, ""),
-            mimeType: 'image/png'
-        },
-        config
-      });
-    } else {
-        operation = await ai.models.generateVideos({
-            model: 'veo-3.1-fast-generate-preview',
-            prompt: prompt,
-            config
-        });
-    }
-
-    // Polling
-    while (!operation.done) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      operation = await ai.operations.getVideosOperation({ operation: operation });
-    }
-
-    const uri = operation.response?.generatedVideos?.[0]?.video?.uri;
-    if (uri) {
-        // Fetch with API key
-        const videoRes = await fetch(`${uri}&key=${process.env.API_KEY}`);
-        const blob = await videoRes.blob();
-        return URL.createObjectURL(blob);
-    }
-
-  } catch (e) {
-    console.error("Video generation failed", e);
-  }
-  return null;
-};
-
-/**
- * Analyze an image using Gemini 3 Pro.
+ * Analyze an image using Gemini 2.5 Flash.
  */
 export const analyzeImage = async (base64Image: string, prompt: string): Promise<string> => {
     const ai = getAI();
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
     
+    // Using Flash for faster, lighter analysis
     const response = await ai.models.generateContent({
-        model: "gemini-3-pro-preview",
+        model: "gemini-2.5-flash",
         contents: {
             parts: [
                 { inlineData: { data: base64Data, mimeType: "image/jpeg" } },

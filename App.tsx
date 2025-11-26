@@ -4,7 +4,7 @@ import { suggestIdeas } from './services/geminiService';
 import MandalaCell from './components/MandalaCell';
 import ChatPanel from './components/ChatPanel';
 import MediaPanel from './components/MediaPanel';
-import { LayoutGrid, Sparkles, MessageSquare, Menu, ChevronLeft, ArrowLeft, Trash2, Type } from 'lucide-react';
+import { LayoutGrid, Sparkles, MessageSquare, Menu, ChevronLeft, ArrowLeft, Trash2, Type, Maximize2, Bot } from 'lucide-react';
 
 const INITIAL_CELL: CellData = { id: '', text: '' };
 
@@ -89,7 +89,6 @@ const App: React.FC = () => {
         setSelectedCell({ type: 'main', index: -1 });
       } else {
         const idx = OUTER_INDICES.indexOf(pos as GridPosition);
-        // Double click logic or specific button to enter? Let's just select first.
         setSelectedCell({ type: 'sub', index: idx });
       }
     } else {
@@ -119,6 +118,20 @@ const App: React.FC = () => {
     setSelectedCell(null);
   };
 
+  const handleCellDoubleClick = (pos: number) => {
+    if (viewMode === ViewMode.MAIN) {
+        // Double click outer cell -> Enter it
+        if (pos !== 4) {
+            handleZoomIn(pos);
+        }
+    } else if (viewMode === ViewMode.SUB) {
+        // Double click center cell -> Go back
+        if (pos === 4) {
+            handleBackToMain();
+        }
+    }
+  };
+
   const handleClearAll = () => {
     if (window.confirm("確定要清除所有內容嗎？此動作無法復原。")) {
         setData(createEmptyChart());
@@ -145,7 +158,6 @@ const App: React.FC = () => {
 
       if (viewMode === ViewMode.MAIN) {
         // Suggest SubGoals
-        // We allow generating even if mainGoal text is empty IF there is chat history
         if (!data.mainGoal.text && chatHistoryText.length < 50) {
             alert("請先輸入核心目標，或先與 AI 助手討論您的想法。");
             setIsSuggesting(false);
@@ -278,11 +290,20 @@ const App: React.FC = () => {
 
             <button 
                 onClick={toggleChat}
-                className={`p-1.5 md:p-2 rounded-full transition ${showChat ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`
+                    flex items-center gap-2
+                    p-2 md:px-4 md:py-2 rounded-full transition-all duration-300
+                    ${showChat 
+                        ? 'bg-indigo-800 text-white shadow-inner ring-2 ring-indigo-300' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg hover:-translate-y-0.5'
+                    }
+                `}
                 title="AI 助手"
             >
-                <MessageSquare size={20} className="md:w-5 md:h-5" />
+                <Bot size={20} className="md:w-5 md:h-5" />
+                <span className="hidden md:inline text-sm font-semibold">AI 助手</span>
             </button>
+
             <button 
                 onClick={toggleMedia}
                 className={`p-1.5 md:p-2 rounded-full transition ${showMedia ? 'bg-purple-100 text-purple-600' : 'text-gray-500 hover:bg-gray-100'}`}
@@ -355,18 +376,35 @@ const App: React.FC = () => {
                                     isActive={isActive}
                                     fontSize={fontSize}
                                     onClick={() => handleCellClick(pos)}
+                                    onDoubleClick={() => handleCellDoubleClick(pos)}
                                     onEdit={(text) => updateCell(pos, { text })}
                                 />
+                                
+                                {/* Zoom In Action Button - Always visible for ease of access on outer cells in MAIN mode */}
                                 {!isCenter && viewMode === ViewMode.MAIN && (
                                     <button 
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleZoomIn(pos);
                                         }}
-                                        className="absolute bottom-1 right-1 p-0.5 md:p-1 bg-white/80 rounded-full shadow hover:bg-indigo-50 text-indigo-500 opacity-60 md:opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                                        title="聚焦此區域"
+                                        className="absolute bottom-1 right-1 p-1.5 md:p-2 bg-white/90 text-indigo-600 rounded-full shadow-md hover:bg-indigo-50 transition z-20"
+                                        title="進入細節"
                                     >
-                                        <ChevronLeft size={14} className="rotate-180"/>
+                                        <Maximize2 size={16} className="md:w-5 md:h-5"/>
+                                    </button>
+                                )}
+
+                                {/* Zoom Out Action Button - On Center Cell of SUB mode */}
+                                {isCenter && viewMode === ViewMode.SUB && (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleBackToMain();
+                                        }}
+                                        className="absolute top-1 left-1 p-1.5 md:p-2 bg-indigo-500 text-white rounded-full shadow-md hover:bg-indigo-400 transition z-20"
+                                        title="返回主總覽"
+                                    >
+                                        <ArrowLeft size={16} className="md:w-5 md:h-5"/>
                                     </button>
                                 )}
                             </div>
@@ -376,7 +414,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="pb-2 md:pb-4 text-center text-gray-400 text-xs md:text-sm shrink-0">
-                {viewMode === ViewMode.MAIN ? "主總覽：定義你的核心目標" : `區域：${data.subGoals[focusedSubGoalIndex || 0].text || "未命名"}`}
+                {viewMode === ViewMode.MAIN ? "主總覽：定義你的核心目標（雙擊外圍格子可進入）" : `區域：${data.subGoals[focusedSubGoalIndex || 0].text || "未命名"}（雙擊中心可返回）`}
             </div>
         </main>
 

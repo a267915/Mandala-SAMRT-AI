@@ -3,7 +3,7 @@ export interface CellData {
   text: string;
   notes?: string;
   imageUrl?: string;
-  videoUrl?: string;
+  videoUrl?: string; // Kept for backward compatibility if data exists, but not generating new ones
   isCompleted?: boolean;
 }
 
@@ -28,8 +28,6 @@ export enum ViewMode {
 export type GeminiModel = 
   | 'gemini-2.5-flash' 
   | 'gemini-3-pro-preview' 
-  | 'gemini-3-pro-image-preview' 
-  | 'veo-3.1-fast-generate-preview'
   | 'gemini-2.5-flash-image';
 
 export interface ChatMessage {

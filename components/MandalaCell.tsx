@@ -1,11 +1,12 @@
 import React from 'react';
 import { CellData, FontSize } from '../types';
-import { Image, Video, Sparkles, CheckCircle, Maximize2 } from 'lucide-react';
+import { Image, Video, CheckCircle, Maximize2 } from 'lucide-react';
 
 interface MandalaCellProps {
   data: CellData;
   isCenter: boolean;
   onClick: () => void;
+  onDoubleClick?: () => void;
   onEdit: (text: string) => void;
   isActive: boolean;
   highlight?: boolean;
@@ -16,6 +17,7 @@ const MandalaCell: React.FC<MandalaCellProps> = ({
   data, 
   isCenter, 
   onClick, 
+  onDoubleClick,
   onEdit, 
   isActive, 
   highlight,
@@ -37,6 +39,7 @@ const MandalaCell: React.FC<MandalaCellProps> = ({
   return (
     <div 
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       className={`
         relative flex flex-col items-center justify-center 
         p-1 md:p-2 
@@ -101,10 +104,10 @@ const MandalaCell: React.FC<MandalaCellProps> = ({
         {data.videoUrl && <Video size={12} className={`md:w-4 md:h-4 ${isCenter ? "text-indigo-200" : "text-gray-400"}`} />}
       </div>
       
-      {/* Focus Hint */}
+      {/* Focus Hint (Only for main view outer cells that are not empty, as a subtle hint) */}
       {!isCenter && data.text && (
-        <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">
-           <Maximize2 size={12} className="text-gray-400" /> 
+        <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity hidden md:block pointer-events-none">
+           <Maximize2 size={10} className="text-gray-400" /> 
         </div>
       )}
     </div>
