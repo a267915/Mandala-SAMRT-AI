@@ -1,0 +1,8 @@
+{
+  "name": "曼陀羅思考法 AI",
+  "description": "強大的曼陀羅思考法（九宮格）應用程式，由 Gemini 2.5 和 3.0 Pro 驅動。可視化目標、拆解任務，並使用 AI 進行腦力激盪、生成圖像和影片。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
