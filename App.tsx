@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CellData, MandalaChart, ViewMode, GridPosition, ChatMessage, FontSize, Theme } from './types';
 import { suggestIdeas } from './services/geminiService';
@@ -5,7 +6,8 @@ import MandalaCell from './components/MandalaCell';
 import ChatPanel from './components/ChatPanel';
 import MediaPanel from './components/MediaPanel';
 import ExportModal from './components/ExportModal';
-import { LayoutGrid, Sparkles, MessageSquare, Menu, ChevronLeft, ArrowLeft, Trash2, Type, Maximize2, Bot, Sun, Moon, Share2, ZoomIn } from 'lucide-react';
+import GoalPanel from './components/GoalPanel';
+import { LayoutGrid, Sparkles, MessageSquare, Menu, ChevronLeft, ArrowLeft, Trash2, Type, Maximize2, Bot, Sun, Moon, Share2, ZoomIn, Target } from 'lucide-react';
 
 const INITIAL_CELL: CellData = { id: '', text: '' };
 
@@ -34,6 +36,7 @@ const App: React.FC = () => {
   
   const [showChat, setShowChat] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
+  const [showGoals, setShowGoals] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [fontSize, setFontSize] = useState<FontSize>('medium');
@@ -77,7 +80,12 @@ const App: React.FC = () => {
 
   const updateCell = (pos: number, updates: Partial<CellData>) => {
      setData(prev => {
+       // Deep copy needed for reliable updates, though shallow copy of arrays often works in React if reference changes
+       // Using shallow copy of arrays for better safety
        const next = { ...prev };
+       next.subGoals = [...prev.subGoals];
+       next.tasks = [...prev.tasks]; // Shallow copy of the array of arrays
+       
        if (viewMode === ViewMode.MAIN) {
           if (pos === 4) {
             next.mainGoal = { ...next.mainGoal, ...updates };
@@ -87,11 +95,26 @@ const App: React.FC = () => {
           }
        } else {
           if (focusedSubGoalIndex === null) return next;
+          // IMPORTANT: Need to clone the specific task array before modifying
+          next.tasks[focusedSubGoalIndex] = [...next.tasks[focusedSubGoalIndex]];
+
           if (pos === 4) {
              next.subGoals[focusedSubGoalIndex] = { ...next.subGoals[focusedSubGoalIndex], ...updates };
           } else {
              const tIdx = OUTER_INDICES.indexOf(pos as GridPosition);
-             if (tIdx !== -1) next.tasks[focusedSubGoalIndex][tIdx] = { ...next.tasks[focusedSubGoalIndex][tIdx], ...updates };
+             if (tIdx !== -1) {
+                // Update the task
+                next.tasks[focusedSubGoalIndex][tIdx] = { ...next.tasks[focusedSubGoalIndex][tIdx], ...updates };
+                
+                // Recalculate progress for this sub-goal
+                const tasks = next.tasks[focusedSubGoalIndex];
+                const nonEmptyTasks = tasks.filter(t => t.text);
+                if (nonEmptyTasks.length > 0) {
+                    const completedTasks = nonEmptyTasks.filter(t => t.isCompleted).length;
+                    const newProgress = Math.round((completedTasks / nonEmptyTasks.length) * 100);
+                    next.subGoals[focusedSubGoalIndex] = { ...next.subGoals[focusedSubGoalIndex], progress: newProgress };
+                }
+             }
           }
        }
        return next;
@@ -149,12 +172,33 @@ const App: React.FC = () => {
     }
   };
 
-  const handleClearAll = () => {
-    if (window.confirm("確定要清除所有內容嗎？此動作無法復原。")) {
-        setData(createEmptyChart());
-        setViewMode(ViewMode.MAIN);
-        setFocusedSubGoalIndex(null);
-        setSelectedCell(null);
+  const handleClearCurrentView = () => {
+    if (viewMode === ViewMode.MAIN) {
+        if (window.confirm("確定要清除所有內容（包含所有子目標與任務）嗎？此動作無法復原。")) {
+            setData(createEmptyChart());
+            // No change to viewMode, stay in MAIN
+            setFocusedSubGoalIndex(null);
+            setSelectedCell(null);
+        }
+    } else if (viewMode === ViewMode.SUB && focusedSubGoalIndex !== null) {
+        if (window.confirm("確定要清除此頁面（此子目標及其所有任務）的內容嗎？")) {
+            setData(prev => ({
+                ...prev,
+                // Use immutable map to replace the specific subGoal
+                subGoals: prev.subGoals.map((sub, idx) => 
+                    idx === focusedSubGoalIndex 
+                        ? { ...INITIAL_CELL, id: `sub-${idx}` } 
+                        : sub
+                ),
+                // Use immutable map to replace the specific task array
+                tasks: prev.tasks.map((tasksGroup, idx) => 
+                    idx === focusedSubGoalIndex
+                        ? Array(8).fill(null).map((_, j) => ({ ...INITIAL_CELL, id: `task-${idx}-${j}` }))
+                        : tasksGroup
+                )
+            }));
+            setSelectedCell(null);
+        }
     }
   };
 
@@ -194,7 +238,7 @@ const App: React.FC = () => {
         const ideas = await suggestIdeas(data.mainGoal.text || "未定義（請參考對話）", null, currentItems, chatHistoryText);
         
         setData(prev => {
-            const next = { ...prev };
+            const next = { ...prev, subGoals: [...prev.subGoals] };
             ideas.forEach((idea, i) => {
                 if (i < 8 && !next.subGoals[i].text) {
                     next.subGoals[i] = { ...next.subGoals[i], text: idea };
@@ -218,7 +262,9 @@ const App: React.FC = () => {
         const ideas = await suggestIdeas(data.mainGoal.text, subGoal.text || "未定義", currentItems, chatHistoryText);
 
         setData(prev => {
-            const next = { ...prev };
+            const next = { ...prev, tasks: [...prev.tasks] };
+            next.tasks[focusedSubGoalIndex] = [...next.tasks[focusedSubGoalIndex]];
+            
             ideas.forEach((idea, i) => {
                 if (i < 8 && !next.tasks[focusedSubGoalIndex][i].text) {
                     next.tasks[focusedSubGoalIndex][i] = { ...next.tasks[focusedSubGoalIndex][i], text: idea };
@@ -246,21 +292,57 @@ const App: React.FC = () => {
   const updateActiveCellFromMedia = (updates: Partial<CellData>) => {
       if (!selectedCell) return;
       setData(prev => {
-          const next = { ...prev };
+          const next = { ...prev, subGoals: [...prev.subGoals], tasks: [...prev.tasks] };
+          
           if (selectedCell.type === 'main') {
               next.mainGoal = { ...next.mainGoal, ...updates };
           } else if (selectedCell.type === 'sub') {
               next.subGoals[selectedCell.index] = { ...next.subGoals[selectedCell.index], ...updates };
           } else if (selectedCell.type === 'task' && selectedCell.subIndex !== undefined) {
+              next.tasks[selectedCell.subIndex] = [...next.tasks[selectedCell.subIndex]];
               next.tasks[selectedCell.subIndex][selectedCell.index] = { ...next.tasks[selectedCell.subIndex][selectedCell.index], ...updates };
           }
+          return next;
+      });
+  };
+  
+  const updateSubGoalFromGoalPanel = (index: number, updates: Partial<CellData>) => {
+      setData(prev => {
+          const next = { ...prev, subGoals: [...prev.subGoals] };
+          next.subGoals[index] = { ...next.subGoals[index], ...updates };
+          return next;
+      });
+  };
+
+  const updateTaskFromGoalPanel = (subIndex: number, taskIndex: number, updates: Partial<CellData>) => {
+      setData(prev => {
+          const next = { ...prev, subGoals: [...prev.subGoals], tasks: [...prev.tasks] };
+          next.tasks[subIndex] = [...next.tasks[subIndex]];
+          
+          // 1. Update the specific task
+          next.tasks[subIndex][taskIndex] = { ...next.tasks[subIndex][taskIndex], ...updates };
+          
+          // 2. Recalculate progress for the parent SubGoal
+          const tasks = next.tasks[subIndex];
+          const nonEmptyTasks = tasks.filter(t => t.text);
+          if (nonEmptyTasks.length > 0) {
+              const completedTasks = nonEmptyTasks.filter(t => t.isCompleted).length;
+              const newProgress = Math.round((completedTasks / nonEmptyTasks.length) * 100);
+              next.subGoals[subIndex] = { ...next.subGoals[subIndex], progress: newProgress };
+          } else {
+             next.subGoals[subIndex] = { ...next.subGoals[subIndex], progress: 0 };
+          }
+          
           return next;
       });
   };
 
   // Toggle handlers that ensure mutually exclusive panels on smaller screens
   const toggleChat = () => {
-    if (!showChat) setShowMedia(false);
+    if (!showChat) {
+        setShowMedia(false);
+        setShowGoals(false);
+    }
     setShowChat(!showChat);
   };
 
@@ -269,15 +351,35 @@ const App: React.FC = () => {
         alert("請先選擇一個格子以使用創意工具");
         return;
     }
-    if (!showMedia) setShowChat(false);
+    if (!showMedia) {
+        setShowChat(false);
+        setShowGoals(false);
+    }
     setShowMedia(!showMedia);
   };
+  
+  const toggleGoals = () => {
+    if (!showGoals) {
+        setShowChat(false);
+        setShowMedia(false);
+    }
+    setShowGoals(!showGoals);
+  };
+  
+  // Close all panels helper
+  const closeAllPanels = () => {
+      setShowChat(false);
+      setShowMedia(false);
+      setShowGoals(false);
+  };
+
+  const isAnyPanelOpen = showChat || showMedia || showGoals;
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       
       {/* Header */}
-      <header className="h-14 md:h-16 bg-white dark:bg-slate-900 border-b dark:border-slate-700 flex items-center justify-between px-2 md:px-6 shadow-sm z-20 shrink-0 transition-colors duration-300">
+      <header className="h-14 md:h-16 bg-white dark:bg-slate-900 border-b dark:border-slate-700 flex items-center justify-between px-2 md:px-6 shadow-sm z-20 shrink-0 transition-colors duration-300 relative">
         <div className="flex items-center gap-2 md:gap-3">
           <div className="bg-indigo-600 dark:bg-indigo-700 p-1.5 md:p-2 rounded-lg text-white">
             <LayoutGrid size={20} className="md:w-6 md:h-6" />
@@ -322,13 +424,21 @@ const App: React.FC = () => {
                  </button>
 
                  <button
-                    onClick={handleClearAll}
+                    onClick={handleClearCurrentView}
                     className="p-1.5 md:p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 transition"
-                    title="清除所有內容"
+                    title={viewMode === ViewMode.MAIN ? "清除所有內容" : "清除本頁內容"}
                  >
                     <Trash2 size={18} className="md:w-5 md:h-5" />
                  </button>
             </div>
+            
+            <button 
+                onClick={toggleGoals}
+                className={`p-1.5 md:p-2 rounded-full transition ${showGoals ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                title="目標進度追蹤"
+            >
+                <Target size={20} className="md:w-5 md:h-5" />
+            </button>
 
             <button 
                 onClick={toggleChat}
@@ -376,11 +486,6 @@ const App: React.FC = () => {
 
             {/* Grid Container */}
             <div className="flex-1 flex items-center justify-center p-2 bg-slate-50 dark:bg-slate-950 w-full transition-colors duration-300">
-                {/* 
-                   Responsive Grid Logic:
-                   w-full max-w-[min(95vw, 75vh)] ensures it fits the viewport width OR height, whichever is tighter.
-                   On desktop, we allow it to be max-w-2xl if space permits.
-                */}
                 <div 
                     id="mandala-grid" 
                     className={`
@@ -425,7 +530,6 @@ const App: React.FC = () => {
                                     onEdit={(text) => updateCell(pos, { text })}
                                 />
                                 
-                                {/* Zoom In Action Button - Always visible, prominent */}
                                 {!isCenter && viewMode === ViewMode.MAIN && (
                                     <button
                                         onClick={(e) => {
@@ -439,7 +543,6 @@ const App: React.FC = () => {
                                     </button>
                                 )}
 
-                                {/* Back Button - Center cell in SUB mode - Prominent Pill */}
                                 {isCenter && viewMode === ViewMode.SUB && (
                                      <button
                                         onClick={(e) => {
@@ -459,6 +562,14 @@ const App: React.FC = () => {
                 </div>
             </div>
         </main>
+        
+        {/* Backdrop for closing panels (Desktop/Mobile) */}
+        {isAnyPanelOpen && (
+             <div 
+                className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-25 transition-opacity duration-300"
+                onClick={closeAllPanels}
+             />
+        )}
 
         {/* Side Panels */}
         <div className={`
@@ -469,12 +580,30 @@ const App: React.FC = () => {
         `}>
             {showChat && (
                 <div className="h-full w-full">
-                    <div className="absolute top-2 right-full mr-2 md:hidden">
-                        <button onClick={toggleChat} className="bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg text-gray-500">
-                             <ChevronLeft />
-                        </button>
-                    </div>
-                    <ChatPanel messages={chatMessages} onUpdateMessages={setChatMessages} />
+                    <ChatPanel 
+                        messages={chatMessages} 
+                        onUpdateMessages={setChatMessages} 
+                        onClose={() => setShowChat(false)}
+                    />
+                </div>
+            )}
+        </div>
+        
+        <div className={`
+            fixed inset-y-0 right-0 z-30 
+            w-full md:w-80 lg:w-96 
+            transform transition-transform duration-300 ease-in-out shadow-2xl
+            ${showGoals ? 'translate-x-0' : 'translate-x-full'}
+        `}>
+             {showGoals && (
+                <div className="h-full w-full">
+                    <GoalPanel 
+                        data={data}
+                        onUpdateSubGoal={updateSubGoalFromGoalPanel}
+                        onUpdateTask={updateTaskFromGoalPanel}
+                        onClose={() => setShowGoals(false)}
+                        activeFocus={selectedCell}
+                    />
                 </div>
             )}
         </div>
@@ -487,11 +616,6 @@ const App: React.FC = () => {
         `}>
              {showMedia && (
                 <div className="h-full w-full">
-                     <div className="absolute top-2 right-full mr-2 md:hidden">
-                        <button onClick={toggleMedia} className="bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg text-gray-500">
-                             <ChevronLeft />
-                        </button>
-                    </div>
                     <MediaPanel 
                         activeCell={getActiveCellForMedia()} 
                         onUpdateCell={updateActiveCellFromMedia} 

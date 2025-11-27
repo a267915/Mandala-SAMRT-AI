@@ -1,3 +1,4 @@
+
 export interface CellData {
   id: string;
   text: string;
@@ -5,6 +6,9 @@ export interface CellData {
   imageUrl?: string;
   videoUrl?: string; // Kept for backward compatibility if data exists, but not generating new ones
   isCompleted?: boolean;
+  progress?: number; // 0 to 100
+  deadline?: string; // ISO Date string
+  frequency?: 'one-time' | 'daily' | 'weekly'; // Task frequency
 }
 
 export interface MandalaChart {

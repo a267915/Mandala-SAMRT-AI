@@ -1,14 +1,16 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Search, Bot, Loader2 } from 'lucide-react';
+import { Send, Search, Bot, Loader2, X } from 'lucide-react';
 import { chatWithGemini } from '../services/geminiService';
 import { ChatMessage } from '../types';
 
 interface ChatPanelProps {
     messages: ChatMessage[];
     onUpdateMessages: (newMessages: ChatMessage[]) => void;
+    onClose: () => void;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onUpdateMessages }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onUpdateMessages, onClose }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [useSearch, setUseSearch] = useState(false);
@@ -57,13 +59,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onUpdateMessages }) => 
             <Bot size={20} className="text-indigo-600 dark:text-indigo-400"/>
             AI 助手
         </h2>
-        <button 
-            onClick={() => setUseSearch(!useSearch)}
-            className={`p-1.5 rounded-full transition-colors ${useSearch ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-700'}`}
-            title="切換 Google 搜尋"
-        >
-            <Search size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={() => setUseSearch(!useSearch)}
+                className={`p-1.5 rounded-full transition-colors ${useSearch ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-700'}`}
+                title="切換 Google 搜尋"
+            >
+                <Search size={18} />
+            </button>
+            <button 
+                onClick={onClose}
+                className="p-1.5 rounded-full text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                title="關閉"
+            >
+                <X size={20} />
+            </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-700">
